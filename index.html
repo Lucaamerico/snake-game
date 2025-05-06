@@ -7,26 +7,29 @@
   <style>
     body {
       font-family: monospace;
-      background-color: #e0e0e0;
+      background-color: #111;
+      color: white;
       text-align: center;
     }
     canvas {
-      background-color: #f5f5f5;
-      border: 2px solid #333;
+      background-color: black;
       display: block;
       margin: 0 auto;
+      border: 2px solid #333;
     }
     #startBtn {
       padding: 10px 20px;
       font-size: 16px;
       margin-top: 10px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <h1>Snake Game</h1>
-  <p>Use Arrow Keys to Move | Press R to Restart</p>
+  <p>Use Arrow Keys to Control the Snake</p>
   <canvas id="gameCanvas" width="400" height="400"></canvas>
+  <br />
   <button id="startBtn">Start Game</button>
   <p id="score">Score: 0 | High Score: 0</p>
   <p id="gameOver" style="display: none;">Game Over! Press R to restart.</p>
@@ -34,13 +37,15 @@
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-
     const tileSize = 20;
     const tileCount = canvas.width / tileSize;
 
     let snake, food, velocity, score, gameOver, gameInterval, highScore = 0;
     let rainbowMode = false;
-    let speed = 100;
+    let boost = null;
+    let normalSpeed = 100;
+    let currentSpeed = normalSpeed;
+    let boostActive = false;
 
     if (localStorage.getItem('highScore')) {
       highScore = parseInt(localStorage.getItem('highScore'));
@@ -49,20 +54,24 @@
     document.getElementById('score').textContent = `Score: 0 | High Score: ${highScore}`;
 
     function initGame() {
-      snake = [ { x: 10, y: 10 } ];
+      snake = [{ x: 10, y: 10 }];
       food = { x: 5, y: 5 };
       velocity = { x: 1, y: 0 };
       score = 0;
       gameOver = false;
       rainbowMode = false;
-      speed = 100;
+      boost = null;
+      boostActive = false;
 
       document.getElementById('score').textContent = `Score: 0 | High Score: ${highScore}`;
       document.getElementById('gameOver').style.display = 'none';
 
       placeFood();
+      maybePlaceBoost();
+
       clearInterval(gameInterval);
-      gameInterval = setInterval(drawGame, speed);
+      currentSpeed = normalSpeed;
+      gameInterval = setInterval(drawGame, currentSpeed);
     }
 
     function drawGame() {
@@ -92,23 +101,22 @@
 
         document.getElementById('score').textContent = `Score: ${score} | High Score: ${highScore}`;
         placeFood();
-        maybeBoostSpeed();
+        maybePlaceBoost();
+      } else if (boost && head.x === boost.x && head.y === boost.y) {
+        activateSpeedBoost();
+        boost = null;
       } else {
         snake.pop();
-      }
-    }
-
-    function maybeBoostSpeed() {
-      if (Math.random() < 0.3) {
-        speed = Math.max(40, speed - 10);
-        clearInterval(gameInterval);
-        gameInterval = setInterval(drawGame, speed);
       }
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawRoundedRect(food.x, food.y, 'red');
+
+      if (boost) {
+        drawRoundedRect(boost.x, boost.y, 'cyan');
+      }
 
       snake.forEach((segment, index) => {
         let color;
@@ -137,6 +145,7 @@
       ctx.fill();
     }
 
+    // Polyfill
     if (!CanvasRenderingContext2D.prototype.roundRect) {
       CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
         if (w < 2 * r) r = w / 2;
@@ -153,13 +162,38 @@
     }
 
     function placeFood() {
-      food = {
-        x: Math.floor(Math.random() * tileCount),
-        y: Math.floor(Math.random() * tileCount)
-      };
-      for (let segment of snake) {
-        if (segment.x === food.x && segment.y === food.y) return placeFood();
+      food = getEmptyTile();
+    }
+
+    function maybePlaceBoost() {
+      if (Math.random() < 0.2 && !boostActive) {
+        boost = getEmptyTile();
       }
+    }
+
+    function getEmptyTile() {
+      let position;
+      do {
+        position = {
+          x: Math.floor(Math.random() * tileCount),
+          y: Math.floor(Math.random() * tileCount)
+        };
+      } while (snake.some(s => s.x === position.x && s.y === position.y));
+      return position;
+    }
+
+    function activateSpeedBoost() {
+      boostActive = true;
+      clearInterval(gameInterval);
+      currentSpeed = 50; // double speed
+      gameInterval = setInterval(drawGame, currentSpeed);
+      setTimeout(() => {
+        clearInterval(gameInterval);
+        currentSpeed = normalSpeed;
+        gameInterval = setInterval(drawGame, currentSpeed);
+        boostActive = false;
+        maybePlaceBoost();
+      }, 5000); // Boost lasts 5 seconds
     }
 
     function endGame() {
@@ -172,6 +206,7 @@
 
     document.addEventListener('keydown', e => {
       if (gameOver && e.key.toLowerCase() === 'r') initGame();
+
       if (e.key === 'ArrowUp' && velocity.y === 0) velocity = { x: 0, y: -1 };
       else if (e.key === 'ArrowDown' && velocity.y === 0) velocity = { x: 0, y: 1 };
       else if (e.key === 'ArrowLeft' && velocity.x === 0) velocity = { x: -1, y: 0 };
@@ -180,5 +215,3 @@
   </script>
 </body>
 </html>
-
-
