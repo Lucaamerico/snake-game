@@ -7,14 +7,14 @@
   <style>
     body {
       font-family: monospace;
-      background-color: #111;
-      color: white;
+      background-color: #f0f0f0;
+      color: #222;
       text-align: center;
     }
     canvas {
-      background-color: black;
       display: block;
       margin: 0 auto;
+      background-color: #fff;
       border: 2px solid #333;
     }
     #startBtn {
@@ -41,13 +41,12 @@
     const tileCount = canvas.width / tileSize;
 
     let snake, food, velocity, score, gameOver, gameInterval, highScore = 0;
+    let speed = 100;
     let rainbowMode = false;
 
     if (localStorage.getItem('highScore')) {
       highScore = parseInt(localStorage.getItem('highScore'));
     }
-
-    document.getElementById('score').textContent = `Score: 0 | High Score: ${highScore}`;
 
     function initGame() {
       snake = [{ x: 10, y: 10 }];
@@ -56,13 +55,14 @@
       score = 0;
       gameOver = false;
       rainbowMode = false;
+      speed = 100;
 
       document.getElementById('score').textContent = `Score: 0 | High Score: ${highScore}`;
       document.getElementById('gameOver').style.display = 'none';
 
       placeFood();
       clearInterval(gameInterval);
-      gameInterval = setInterval(drawGame, 100);
+      gameInterval = setInterval(drawGame, speed);
     }
 
     function drawGame() {
@@ -88,60 +88,60 @@
           highScore = score;
           localStorage.setItem('highScore', highScore);
         }
-        if (score >= 5) rainbowMode = true;
+        if (score >= 4) rainbowMode = true;
 
         document.getElementById('score').textContent = `Score: ${score} | High Score: ${highScore}`;
         placeFood();
+        maybeBoostSpeed();
       } else {
         snake.pop();
       }
     }
 
+    function maybeBoostSpeed() {
+      if (Math.random() < 0.3) {
+        speed = Math.max(50, speed - 10);
+        clearInterval(gameInterval);
+        gameInterval = setInterval(drawGame, speed);
+      }
+    }
+
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawRoundedRect(food.x, food.y, 'red');
+      drawGrid();
+      drawRect(food.x, food.y, 'red');
 
       snake.forEach((segment, index) => {
         let color;
         if (rainbowMode) {
-          const hue = (index * 30 + score * 10) % 360;
+          const hue = (index * 30 + score * 20) % 360;
           color = `hsl(${hue}, 100%, 50%)`;
         } else {
-          color = index === 0 ? '#00ff88' : `rgba(0,255,0,${1 - index / (snake.length + 5)})`;
+          color = index === 0 ? 'green' : 'limegreen';
         }
-        drawRoundedRect(segment.x, segment.y, color);
+        drawRect(segment.x, segment.y, color);
       });
     }
 
-    function drawRoundedRect(x, y, color) {
-      const padding = 2;
-      const radius = 4;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(
-        x * tileSize + padding,
-        y * tileSize + padding,
-        tileSize - padding * 2,
-        tileSize - padding * 2,
-        radius
-      );
-      ctx.fill();
+    function drawGrid() {
+      ctx.strokeStyle = '#ddd';
+      for (let x = 0; x < canvas.width; x += tileSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += tileSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
     }
 
-    // Polyfill for roundRect if needed
-    if (!CanvasRenderingContext2D.prototype.roundRect) {
-      CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-        if (w < 2 * r) r = w / 2;
-        if (h < 2 * r) r = h / 2;
-        this.beginPath();
-        this.moveTo(x + r, y);
-        this.arcTo(x + w, y, x + w, y + h, r);
-        this.arcTo(x + w, y + h, x, y + h, r);
-        this.arcTo(x, y + h, x, y, r);
-        this.arcTo(x, y, x + w, y, r);
-        this.closePath();
-        return this;
-      };
+    function drawRect(x, y, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
     }
 
     function placeFood() {
@@ -160,18 +160,22 @@
       document.getElementById('gameOver').style.display = 'block';
     }
 
-    document.getElementById('startBtn').addEventListener('click', initGame);
-
     document.addEventListener('keydown', e => {
-      if (gameOver && e.key.toLowerCase() === 'r') initGame();
-
+      if (gameOver && e.key.toLowerCase() === 'r') {
+        initGame();
+      }
       if (e.key === 'ArrowUp' && velocity.y === 0) velocity = { x: 0, y: -1 };
       else if (e.key === 'ArrowDown' && velocity.y === 0) velocity = { x: 0, y: 1 };
       else if (e.key === 'ArrowLeft' && velocity.x === 0) velocity = { x: -1, y: 0 };
       else if (e.key === 'ArrowRight' && velocity.x === 0) velocity = { x: 1, y: 0 };
     });
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+      initGame();
+    });
   </script>
 </body>
 </html>
+
 
 
